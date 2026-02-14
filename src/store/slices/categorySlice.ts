@@ -24,39 +24,48 @@ const initialState: CategoryState = {
 };
 
 // GET
-export const fetchCategories = createAsyncThunk(
+export const fetchCategories = createAsyncThunk<Category[]>(
   'categories/fetchAll',
   async () => {
-    return await apiRequest('/categories');
+    const data = await apiRequest<Category[]>('/categories');
+    return data;
   }
 );
 
 // CREATE
-export const createCategory = createAsyncThunk(
+export const createCategory = createAsyncThunk<
+  Category,
+  Omit<Category, 'id' | 'createdAt' | 'updatedAt'>
+>(
   'categories/create',
-  async (categoryData: Omit<Category, 'id' | 'createdAt' | 'updatedAt'>) => {
-    return await apiRequest('/categories', {
+  async (categoryData) => {
+    const data = await apiRequest<Category>('/categories', {
       method: 'POST',
       body: JSON.stringify(categoryData),
     });
+    return data;
   }
 );
 
 // UPDATE
-export const updateCategory = createAsyncThunk(
+export const updateCategory = createAsyncThunk<
+  Category,
+  { id: number; data: Partial<Omit<Category, 'id' | 'createdAt' | 'updatedAt'>> }
+>(
   'categories/update',
-  async ({ id, data }: { id: number; data: Partial<Category> }) => {
-    return await apiRequest(`/categories/${id}`, {
+  async ({ id, data }) => {
+    const updated = await apiRequest<Category>(`/categories/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(data),
     });
+    return updated;
   }
 );
 
 // DELETE
-export const deleteCategory = createAsyncThunk(
+export const deleteCategory = createAsyncThunk<number, number>(
   'categories/delete',
-  async (id: number) => {
+  async (id) => {
     await apiRequest(`/categories/${id}`, { method: 'DELETE' });
     return id;
   }

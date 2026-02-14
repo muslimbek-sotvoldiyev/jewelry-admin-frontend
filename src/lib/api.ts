@@ -11,17 +11,15 @@ export async function apiRequest<T = any>(
 
   // Helper: fetch with token
   const makeRequest = async (token: string | null) => {
-    const headers: HeadersInit = {
-      ...(options.headers || {}),
-    };
+    const headers = new Headers(options.headers);
 
     // Agar JSON body bo‘lsa va FormData emas
     if (!(options.body instanceof FormData)) {
-      headers['Content-Type'] = 'application/json';
+      headers.set('Content-Type', 'application/json');
     }
 
     if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
+      headers.set('Authorization', `Bearer ${token}`);
     }
 
     return fetch(`${API_URL}${endpoint}`, {
@@ -67,6 +65,6 @@ export async function apiRequest<T = any>(
     throw new Error(errorMessage);
   }
 
-  // ✅ Return JSON or any type
+  // ✅ Return JSON
   return response.json() as Promise<T>;
 }
