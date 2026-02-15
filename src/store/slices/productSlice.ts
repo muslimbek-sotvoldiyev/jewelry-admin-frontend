@@ -40,37 +40,22 @@ export const fetchProducts = createAsyncThunk(
 );
 
 // CREATE with FormData (images)
-// export const createProduct = createAsyncThunk(
-//   'products/create',
-//   async (productData: { name: string; weight: number; category_id: number; images: File[] }) => {
-//     const formData = new FormData();
-//     formData.append('name', productData.name);
-//     formData.append('weight', productData.weight.toString());
-//     formData.append('category_id', productData.category_id.toString());
-    
-//     // Rasmlarni qo'shish
-//     productData.images.forEach((file) => {
-//       formData.append('images', file);
-//     });
-
-//     return await apiRequest<Product>('/products', {
-//       method: 'POST',
-//       body: formData,
-//     });
-//   }
-// );
-// src/store/slices/productSlice.ts
 export const createProduct = createAsyncThunk(
   'products/create',
-  async (productData: { name: string; weight: number; category_id: number; images: File[] }) => {
+  async (productData: { 
+    name: string; 
+    weight: number; 
+    category_id: number; 
+    images: File[] 
+  }) => {
     const formData = new FormData();
     
-    // ✅ Rasmlarni qo'shamiz
+    // Rasmlarni qo'shamiz
     productData.images.forEach((file) => {
       formData.append('images', file);
     });
 
-    // ✅ JSON ma'lumotlarni string sifatida yuboramiz
+    // JSON ma'lumotlarni string sifatida yuboramiz
     formData.append('name', productData.name);
     formData.append('weight', String(productData.weight));
     formData.append('category_id', String(productData.category_id));
@@ -82,18 +67,34 @@ export const createProduct = createAsyncThunk(
   }
 );
 
-
-
 // UPDATE with FormData
 export const updateProduct = createAsyncThunk(
   'products/update',
-  async ({ id, data }: { id: number; data: { name?: string; weight?: number; category_id?: number; images?: File[] } }) => {
+  async ({ 
+    id, 
+    data 
+  }: { 
+    id: number; 
+    data: { 
+      name?: string; 
+      weight?: number; 
+      category_id?: number; 
+      images?: File[];
+      removeImages?: string[];
+    } 
+  }) => {
     const formData = new FormData();
     
     if (data.name) formData.append('name', data.name);
     if (data.weight) formData.append('weight', data.weight.toString());
     if (data.category_id) formData.append('category_id', data.category_id.toString());
     
+    // O'chiriladigan rasmlar
+    if (data.removeImages && data.removeImages.length > 0) {
+      formData.append('removeImages', JSON.stringify(data.removeImages));
+    }
+    
+    // Yangi rasmlar
     if (data.images && data.images.length > 0) {
       data.images.forEach((file) => {
         formData.append('images', file);
