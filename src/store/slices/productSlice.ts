@@ -2,10 +2,19 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { apiRequest } from '@/lib/api';
 
+export enum Quality {
+  K14 = '14K',
+  K18 = '18K',
+  K22 = '22K',
+}
+
 export interface Product {
   id: number;
   name: string;
-  weight: number;
+  weight: number; // float
+  comment?: string;
+  size?: string;
+  quality?: Quality;
   images: string[];
   category_id: number;
   category?: {
@@ -39,25 +48,39 @@ export const fetchProducts = createAsyncThunk(
   }
 );
 
-// CREATE with FormData (images)
+// CREATE with FormData
 export const createProduct = createAsyncThunk(
   'products/create',
   async (productData: { 
     name: string; 
-    weight: number; 
+    weight: number | string;
+    comment?: string;
+    size?: string;
+    quality?: Quality;
     category_id: number; 
     images: File[] 
   }) => {
     const formData = new FormData();
     
-    // Rasmlarni qo'shamiz
     productData.images.forEach((file) => {
       formData.append('images', file);
     });
 
-    // JSON ma'lumotlarni string sifatida yuboramiz
     formData.append('name', productData.name);
     formData.append('weight', String(productData.weight));
+    
+    if (productData.comment) {
+      formData.append('comment', productData.comment);
+    }
+    
+    if (productData.size) {
+      formData.append('size', productData.size);
+    }
+    
+    if (productData.quality) {
+      formData.append('quality', productData.quality);
+    }
+    
     formData.append('category_id', String(productData.category_id));
 
     return await apiRequest<Product>('/products', {
@@ -77,7 +100,10 @@ export const updateProduct = createAsyncThunk(
     id: number; 
     data: { 
       name?: string; 
-      weight?: number; 
+      weight?: number | string;
+      comment?: string;
+      size?: string;
+      quality?: Quality;
       category_id?: number; 
       images?: File[];
       removeImages?: string[];
@@ -86,15 +112,16 @@ export const updateProduct = createAsyncThunk(
     const formData = new FormData();
     
     if (data.name) formData.append('name', data.name);
-    if (data.weight) formData.append('weight', data.weight.toString());
-    if (data.category_id) formData.append('category_id', data.category_id.toString());
+    if (data.weight !== undefined) formData.append('weight', String(data.weight));
+    if (data.comment !== undefined) formData.append('comment', data.comment);
+    if (data.size !== undefined) formData.append('size', data.size);
+    if (data.quality !== undefined) formData.append('quality', data.quality);
+    if (data.category_id) formData.append('category_id', String(data.category_id));
     
-    // O'chiriladigan rasmlar
     if (data.removeImages && data.removeImages.length > 0) {
       formData.append('removeImages', JSON.stringify(data.removeImages));
     }
     
-    // Yangi rasmlar
     if (data.images && data.images.length > 0) {
       data.images.forEach((file) => {
         formData.append('images', file);

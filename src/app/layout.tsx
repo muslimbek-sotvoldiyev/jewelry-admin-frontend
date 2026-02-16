@@ -2,6 +2,7 @@
 import './globals.css'
 import { Provider } from 'react-redux'
 import { store } from '@/store'
+import { Toaster } from 'sonner';
 
 export default function RootLayout({
   children,
@@ -13,6 +14,12 @@ export default function RootLayout({
       <body>
         <Provider store={store}>
           {children}
+           <Toaster 
+            position="top-right"
+            richColors
+            expand={false}
+            duration={3000}
+          />
         </Provider>
       </body>
     </html>

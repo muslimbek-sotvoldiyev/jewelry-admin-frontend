@@ -1,12 +1,13 @@
-// app/products/page.tsx
+// app/admin/products/page.tsx (Admin Panel)
 'use client';
 import { useEffect, useState } from 'react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { fetchProducts, createProduct, updateProduct, deleteProduct } from '@/store/slices/productSlice';
+import { fetchProducts, createProduct, updateProduct, deleteProduct, Quality } from '@/store/slices/productSlice';
 import { fetchCategories } from '@/store/slices/categorySlice';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { toast } from 'sonner';
 
 export default function ProductsPage() {
   const dispatch = useAppDispatch();
@@ -17,19 +18,19 @@ export default function ProductsPage() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [formData, setFormData] = useState({
     name: '',
-    weight: 0,
+    weight: '', // string for input
+    comment: '',
+    size: '',
+    quality: '' as Quality | '',
     category_id: 0,
   });
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [existingImages, setExistingImages] = useState<string[]>([]);
   const [imagesToRemove, setImagesToRemove] = useState<string[]>([]);
   
-  // Lightbox uchun
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxImages, setLightboxImages] = useState<string[]>([]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-
-  // Card swiper uchun
   const [cardImageIndexes, setCardImageIndexes] = useState<{[key: number]: number}>({});
 
   useEffect(() => {
@@ -38,7 +39,14 @@ export default function ProductsPage() {
   }, [dispatch]);
 
   const resetForm = () => {
-    setFormData({ name: '', weight: 0, category_id: 0 });
+    setFormData({ 
+      name: '', 
+      weight: '', 
+      comment: '',
+      size: '',
+      quality: '',
+      category_id: 0 
+    });
     setImageFiles([]);
     setExistingImages([]);
     setImagesToRemove([]);
@@ -46,13 +54,14 @@ export default function ProductsPage() {
   };
 
   const handleEdit = (product: any) => {
-    console.log('Editing product:', product);
     setFormData({
       name: product.name,
-      weight: product.weight,
+      weight: String(product.weight),
+      comment: product.comment || '',
+      size: product.size || '',
+      quality: product.quality || '',
       category_id: product.category_id,
     });
-    // Rasmlarni to'g'ri set qilish
     setExistingImages(product.images || []);
     setImageFiles([]);
     setImagesToRemove([]);
@@ -66,7 +75,7 @@ export default function ProductsPage() {
       const totalImages = existingImages.length - imagesToRemove.length + imageFiles.length + newFiles.length;
       
       if (totalImages > 5) {
-        alert('Maksimal 5 ta rasm qo\'shishingiz mumkin!');
+        toast.error('Maksimal 5 ta rasm qo\'shishingiz mumkin!');
         return;
       }
       
@@ -74,43 +83,34 @@ export default function ProductsPage() {
     }
   };
 
-  // Mavjud rasmni o'chirish uchun belgilash
   const handleRemoveExistingImage = (imageUrl: string) => {
     const imageName = imageUrl.split('/').pop() || '';
-    console.log('Marking for removal:', imageName);
     setImagesToRemove([...imagesToRemove, imageName]);
   };
 
-  // Yangi rasmni o'chirish
   const handleRemoveNewImage = (index: number) => {
     setImageFiles(imageFiles.filter((_, i) => i !== index));
   };
 
-  // O'chirishni bekor qilish
   const handleUndoRemove = (imageUrl: string) => {
     const imageName = imageUrl.split('/').pop() || '';
-    console.log('Undoing removal:', imageName);
     setImagesToRemove(imagesToRemove.filter(img => img !== imageName));
   };
 
-  // Lightbox ochish
   const openLightbox = (images: string[], index: number) => {
     setLightboxImages(images);
     setCurrentImageIndex(index);
     setLightboxOpen(true);
   };
 
-  // Lightbox keyingi rasm
   const nextImage = () => {
     setCurrentImageIndex((prev) => (prev + 1) % lightboxImages.length);
   };
 
-  // Lightbox oldingi rasm
   const prevImage = () => {
     setCurrentImageIndex((prev) => (prev - 1 + lightboxImages.length) % lightboxImages.length);
   };
 
-  // Card'dagi rasmni o'zgartirish
   const nextCardImage = (productId: number, totalImages: number) => {
     setCardImageIndexes(prev => ({
       ...prev,
@@ -130,14 +130,13 @@ export default function ProductsPage() {
     
     const totalImages = existingImages.length - imagesToRemove.length + imageFiles.length;
     if (totalImages === 0 && !editingId) {
-      alert('Kamida 1 ta rasm qo\'shishingiz kerak!');
+      toast.error('Kamida 1 ta rasm qo\'shishingiz kerak!');
       return;
     }
     
-    console.log('Submitting with:');
-    console.log('Existing images:', existingImages);
-    console.log('Images to remove:', imagesToRemove);
-    console.log('New images:', imageFiles.length);
+    const loadingToast = toast.loading(
+      editingId ? 'Mahsulot saqlanmoqda...' : 'Mahsulot yaratilmoqda...'
+    );
     
     try {
       if (editingId) {
@@ -145,31 +144,40 @@ export default function ProductsPage() {
           id: editingId, 
           data: { 
             ...formData,
+            quality: formData.quality || undefined,
             images: imageFiles.length > 0 ? imageFiles : undefined,
             removeImages: imagesToRemove.length > 0 ? imagesToRemove : undefined
           } 
         })).unwrap();
+        toast.success('Mahsulot muvaffaqiyatli yangilandi!', { id: loadingToast });
       } else {
         await dispatch(createProduct({ 
           ...formData,
+          quality: formData.quality || undefined,
           images: imageFiles 
         })).unwrap();
+        toast.success('Mahsulot muvaffaqiyatli yaratildi!', { id: loadingToast });
       }
       setIsModalOpen(false);
       resetForm();
     } catch (error) {
       console.error('Error:', error);
-      alert('Xatolik yuz berdi! Console\'ni tekshiring.');
+      toast.error('Xatolik yuz berdi!', { 
+        id: loadingToast,
+        description: 'Iltimos, qaytadan urinib ko\'ring' 
+      });
     }
   };
 
   const handleDelete = async (id: number) => {
     if (confirm('Rostdan ham o\'chirmoqchimisiz?')) {
+      const loadingToast = toast.loading('O\'chirilmoqda...');
       try {
         await dispatch(deleteProduct(id)).unwrap();
+        toast.success('Mahsulot o\'chirildi!', { id: loadingToast });
       } catch (error) {
         console.error('Delete error:', error);
-        alert('O\'chirishda xatolik!');
+        toast.error('O\'chirishda xatolik!', { id: loadingToast });
       }
     }
   };
@@ -214,24 +222,19 @@ export default function ProductsPage() {
                         className="w-full h-full object-cover cursor-pointer"
                         onClick={() => openLightbox(product.images, currentIndex)}
                         onError={(e) => {
-                          console.error('Image load error:', product.images[currentIndex]);
                           e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2VlZSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5SYXNtIHlvJ3E8L3RleHQ+PC9zdmc+';
                         }}
                       />
                       
-                      {/* Rasmlar soni ko'rsatkichi */}
-                      {hasMultipleImages && (
-                        <div className="absolute top-2 right-2 bg-black bg-opacity-60 text-white px-2 py-1 rounded-full text-xs flex items-center gap-1">
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                          </svg>
-                          {currentIndex + 1}/{product.images.length}
-                        </div>
-                      )}
-                      
-                      {/* Swiper tugmalari */}
                       {hasMultipleImages && (
                         <>
+                          <div className="absolute top-2 right-2 bg-black bg-opacity-60 text-white px-2 py-1 rounded-full text-xs flex items-center gap-1">
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            {currentIndex + 1}/{product.images.length}
+                          </div>
+                          
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -254,37 +257,25 @@ export default function ProductsPage() {
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                             </svg>
                           </button>
+
+                          <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex gap-1 bg-black bg-opacity-50 px-2 py-1 rounded-full">
+                            {product.images.map((_, index) => (
+                              <div
+                                key={index}
+                                className={`w-2 h-2 rounded-full transition-all cursor-pointer ${
+                                  index === currentIndex ? 'bg-white w-4' : 'bg-white bg-opacity-50'
+                                }`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setCardImageIndexes(prev => ({
+                                    ...prev,
+                                    [product.id]: index
+                                  }));
+                                }}
+                              />
+                            ))}
+                          </div>
                         </>
-                      )}
-                      
-                      {/* Kattalashtirishga ishora */}
-                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
-                        <div className="bg-white rounded-full p-3 shadow-lg">
-                          <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7" />
-                          </svg>
-                        </div>
-                      </div>
-                      
-                      {/* Rasmlar indikatori */}
-                      {hasMultipleImages && (
-                        <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex gap-1 bg-black bg-opacity-50 px-2 py-1 rounded-full">
-                          {product.images.map((_, index) => (
-                            <div
-                              key={index}
-                              className={`w-2 h-2 rounded-full transition-all cursor-pointer ${
-                                index === currentIndex ? 'bg-white w-4' : 'bg-white bg-opacity-50'
-                              }`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setCardImageIndexes(prev => ({
-                                  ...prev,
-                                  [product.id]: index
-                                }));
-                              }}
-                            />
-                          ))}
-                        </div>
                       )}
                     </div>
                   ) : (
@@ -300,14 +291,28 @@ export default function ProductsPage() {
                 <div className="p-4">
                   <h3 className="font-semibold text-gray-900 mb-1 line-clamp-1">{product.name}</h3>
                   
-                  <div className="space-y-2 mb-4">
-                    <div className="flex items-center justify-between text-sm">
+                  <div className="space-y-2 mb-4 text-sm">
+                    <div className="flex items-center justify-between">
                       <span className="text-gray-600">Og'irligi:</span>
                       <span className="font-semibold text-gray-900">{product.weight}g</span>
                     </div>
                     
+                    {product.size && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-600">O'lcham:</span>
+                        <span className="text-gray-900">{product.size}</span>
+                      </div>
+                    )}
+                    
+                    {product.quality && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-600">Sifat:</span>
+                        <span className="text-gray-900 font-medium">{product.quality}</span>
+                      </div>
+                    )}
+                    
                     {product.category && (
-                      <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center justify-between">
                         <span className="text-gray-600">Kategoriya:</span>
                         <span className="text-gray-900">{product.category.name_uz}</span>
                       </div>
@@ -349,7 +354,7 @@ export default function ProductsPage() {
         </div>
       )}
 
-      {/* LIGHTBOX - Rasmlarni Kattalashtirish */}
+      {/* LIGHTBOX */}
       {lightboxOpen && (
         <div 
           className="fixed inset-0 bg-black bg-opacity-90 z-[100] flex items-center justify-center"
@@ -364,22 +369,33 @@ export default function ProductsPage() {
             </svg>
           </button>
 
-          {/* Oldingi tugma */}
           {lightboxImages.length > 1 && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                prevImage();
-              }}
-              className="absolute left-4 text-white hover:text-gray-300 bg-black bg-opacity-50 rounded-full p-3 hover:bg-opacity-70 transition-all"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
+            <>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  prevImage();
+                }}
+                className="absolute left-4 text-white hover:text-gray-300 bg-black bg-opacity-50 rounded-full p-3 hover:bg-opacity-70 transition-all"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  nextImage();
+                }}
+                className="absolute right-4 text-white hover:text-gray-300 bg-black bg-opacity-50 rounded-full p-3 hover:bg-opacity-70 transition-all"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </>
           )}
 
-          {/* Rasm */}
           <div className="max-w-7xl max-h-[90vh] w-full px-16" onClick={(e) => e.stopPropagation()}>
             <img
               src={lightboxImages[currentImageIndex]}
@@ -388,52 +404,15 @@ export default function ProductsPage() {
             />
           </div>
 
-          {/* Keyingi tugma */}
-          {lightboxImages.length > 1 && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                nextImage();
-              }}
-              className="absolute right-4 text-white hover:text-gray-300 bg-black bg-opacity-50 rounded-full p-3 hover:bg-opacity-70 transition-all"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
-          )}
-
-          {/* Rasm sanagichi */}
           {lightboxImages.length > 1 && (
             <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-white bg-black bg-opacity-50 px-4 py-2 rounded-full">
               {currentImageIndex + 1} / {lightboxImages.length}
             </div>
           )}
-
-          {/* Thumbnails */}
-          {lightboxImages.length > 1 && (
-            <div className="absolute bottom-16 left-1/2 transform -translate-x-1/2 flex gap-2" onClick={(e) => e.stopPropagation()}>
-              {lightboxImages.map((img, index) => (
-                <div
-                  key={index}
-                  onClick={() => setCurrentImageIndex(index)}
-                  className={`w-16 h-16 cursor-pointer border-2 rounded-lg overflow-hidden transition-all ${
-                    index === currentImageIndex ? 'border-white scale-110' : 'border-transparent opacity-60 hover:opacity-100'
-                  }`}
-                >
-                  <img
-                    src={img}
-                    alt={`Thumbnail ${index + 1}`}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-              ))}
-            </div>
-          )}
         </div>
       )}
 
-      {/* MODAL - Mahsulot Qo'shish/Tahrirlash */}
+      {/* MODAL */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
@@ -455,37 +434,79 @@ export default function ProductsPage() {
             </div>
 
             <form onSubmit={handleSubmit} className="p-6 space-y-6">
+              {/* Nom */}
               <div>
                 <Label>Nom *</Label>
                 <Input
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   required
-                  className="mt-1"
                   placeholder="Mahsulot nomini kiriting"
                 />
               </div>
 
+              {/* Og'irligi */}
               <div>
                 <Label>Og'irligi (gramm) *</Label>
                 <Input
-                  type="number"
-                  value={formData.weight || ''}
-                  onChange={(e) => setFormData({ ...formData, weight: Number(e.target.value) })}
+                  type="text"
+                  value={formData.weight}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                      setFormData({ ...formData, weight: value });
+                    }
+                  }}
                   required
-                  className="mt-1"
-                  placeholder="500"
-                  min="0"
+                  placeholder="500.5"
                 />
               </div>
 
+              {/* Size */}
+              <div>
+                <Label>O'lcham</Label>
+                <Input
+                  value={formData.size}
+                  onChange={(e) => setFormData({ ...formData, size: e.target.value })}
+                  placeholder="Masalan: 18mm yoki M"
+                />
+              </div>
+
+              {/* Quality */}
+              <div>
+                <Label>Sifat</Label>
+                <select
+                  value={formData.quality}
+                  onChange={(e) => setFormData({ ...formData, quality: e.target.value as Quality | '' })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">Tanlang (ixtiyoriy)</option>
+                  <option value="14K">14 Karat</option>
+                  <option value="18K">18 Karat</option>
+                  <option value="22K">22 Karat</option>
+                </select>
+              </div>
+
+              {/* Comment */}
+              <div>
+                <Label>Izoh</Label>
+                <textarea
+                  value={formData.comment}
+                  onChange={(e) => setFormData({ ...formData, comment: e.target.value })}
+                  placeholder="Qo'shimcha ma'lumot yoki izoh"
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                />
+              </div>
+
+              {/* Kategoriya */}
               <div>
                 <Label>Kategoriya *</Label>
                 <select
                   value={formData.category_id || ''}
                   onChange={(e) => setFormData({ ...formData, category_id: Number(e.target.value) })}
                   required
-                  className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="">Kategoriyani tanlang</option>
                   {categories.map((cat) => (
@@ -494,18 +515,15 @@ export default function ProductsPage() {
                 </select>
               </div>
 
-              {/* Rasmlar Bo'limi */}
+              {/* Rasmlar - unchanged from previous version */}
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <Label>
-                    Rasmlar (maksimal 5 ta) {!editingId && '*'}
-                  </Label>
+                  <Label>Rasmlar (maksimal 5 ta) {!editingId && '*'}</Label>
                   <span className="text-sm text-gray-500">
                     ({existingImages.length - imagesToRemove.length + imageFiles.length}/5)
                   </span>
                 </div>
 
-                {/* Mavjud Rasmlar */}
                 {editingId && existingImages.length > 0 && (
                   <div>
                     <p className="text-sm font-medium text-gray-700 mb-3">Mavjud rasmlar:</p>
@@ -574,7 +592,6 @@ export default function ProductsPage() {
                   </div>
                 )}
 
-                {/* Yangi Rasmlar Preview */}
                 {imageFiles.length > 0 && (
                   <div>
                     <p className="text-sm font-medium text-gray-700 mb-3">Yangi rasmlar:</p>
@@ -584,7 +601,7 @@ export default function ProductsPage() {
                           <img
                             src={URL.createObjectURL(file)}
                             alt={`New ${index + 1}`}
-                            className="w-full h-24 object-cover rounded-lg border-2 border-blue-400 cursor-pointer hover:border-blue-600"
+                            className="w-full h-24 object-cover rounded-lg border-2 border-blue-400"
                           />
                           <button
                             type="button"
@@ -604,7 +621,6 @@ export default function ProductsPage() {
                   </div>
                 )}
 
-                {/* Rasm Yuklash Tugmasi */}
                 {(existingImages.length - imagesToRemove.length + imageFiles.length) < 5 && (
                   <div>
                     <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-colors">
@@ -612,8 +628,7 @@ export default function ProductsPage() {
                         <svg className="w-10 h-10 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                         </svg>
-                        <span className="text-sm font-medium text-gray-600">Rasm yuklash uchun bosing</span>
-                        <span className="text-xs text-gray-500 block mt-1">PNG, JPG, GIF (maks. 5MB)</span>
+                        <span className="text-sm font-medium text-gray-600">Rasm yuklash</span>
                       </div>
                       <Input
                         type="file"
