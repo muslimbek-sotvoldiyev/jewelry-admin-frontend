@@ -1,4 +1,3 @@
-// src/store/slices/productSlice.ts
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { apiRequest } from '@/lib/api';
 
@@ -11,7 +10,7 @@ export enum Quality {
 export interface Product {
   id: number;
   name: string;
-  weight: number; // float
+  weight: number;
   comment?: string;
   size?: string;
   quality?: Quality;
@@ -40,109 +39,85 @@ const initialState: ProductState = {
   error: null,
 };
 
-// GET ALL
-export const fetchProducts = createAsyncThunk(
-  'products/fetchAll',
-  async () => {
-    return await apiRequest<Product[]>('/products');
-  }
-);
+export const fetchProducts = createAsyncThunk('products/fetchAll', async () => {
+  return await apiRequest<Product[]>('/products');
+});
 
-// CREATE with FormData
 export const createProduct = createAsyncThunk(
   'products/create',
-  async (productData: { 
-    name: string; 
+  async (productData: {
+    name: string;
     weight: number | string;
     comment?: string;
     size?: string;
     quality?: Quality;
-    category_id: number; 
-    images: File[] 
+    category_id: number;
+    images: File[];
   }) => {
     const formData = new FormData();
-    
-    productData.images.forEach((file) => {
-      formData.append('images', file);
-    });
 
+    productData.images.forEach((file) => formData.append('images', file));
     formData.append('name', productData.name);
     formData.append('weight', String(productData.weight));
-    
-    if (productData.comment) {
-      formData.append('comment', productData.comment);
-    }
-    
-    if (productData.size) {
-      formData.append('size', productData.size);
-    }
-    
-    if (productData.quality) {
-      formData.append('quality', productData.quality);
-    }
-    
     formData.append('category_id', String(productData.category_id));
+
+    if (productData.comment) formData.append('comment', productData.comment);
+    if (productData.size) formData.append('size', productData.size);
+    if (productData.quality) formData.append('quality', productData.quality);
 
     return await apiRequest<Product>('/products', {
       method: 'POST',
       body: formData,
     });
-  }
+  },
 );
 
-// UPDATE with FormData
 export const updateProduct = createAsyncThunk(
   'products/update',
-  async ({ 
-    id, 
-    data 
-  }: { 
-    id: number; 
-    data: { 
-      name?: string; 
+  async ({
+    id,
+    data,
+  }: {
+    id: number;
+    data: {
+      name?: string;
       weight?: number | string;
       comment?: string;
       size?: string;
       quality?: Quality;
-      category_id?: number; 
+      category_id?: number;
       images?: File[];
       removeImages?: string[];
-    } 
+    };
   }) => {
     const formData = new FormData();
-    
+
     if (data.name) formData.append('name', data.name);
     if (data.weight !== undefined) formData.append('weight', String(data.weight));
     if (data.comment !== undefined) formData.append('comment', data.comment);
     if (data.size !== undefined) formData.append('size', data.size);
     if (data.quality !== undefined) formData.append('quality', data.quality);
     if (data.category_id) formData.append('category_id', String(data.category_id));
-    
+
     if (data.removeImages && data.removeImages.length > 0) {
       formData.append('removeImages', JSON.stringify(data.removeImages));
     }
-    
+
     if (data.images && data.images.length > 0) {
-      data.images.forEach((file) => {
-        formData.append('images', file);
-      });
+      data.images.forEach((file) => formData.append('images', file));
     }
 
     return await apiRequest<Product>(`/products/${id}`, {
       method: 'PATCH',
       body: formData,
     });
-  }
+  },
 );
 
-// DELETE
-export const deleteProduct = createAsyncThunk(
-  'products/delete',
-  async (id: number) => {
-    await apiRequest(`/products/${id}`, { method: 'DELETE' });
-    return id;
-  }
-);
+export const deleteProduct = createAsyncThunk('products/delete', async (id: number) => {
+  await apiRequest(`/products/${id}`, { method: 'DELETE' });
+  return id;
+});
 
 const productSlice = createSlice({
   name: 'products',
@@ -167,9 +142,7 @@ const productSlice = createSlice({
       })
       .addCase(updateProduct.fulfilled, (state, action) => {
         const index = state.products.findIndex((p) => p.id === action.payload.id);
-        if (index !== -1) {
-          state.products[index] = action.payload;
-        }
+        if (index !== -1) state.products[index] = action.payload;
       })
       .addCase(deleteProduct.fulfilled, (state, action) => {
         state.products = state.products.filter((p) => p.id !== action.payload);

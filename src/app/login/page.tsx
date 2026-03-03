@@ -94,8 +94,6 @@ export default function LoginPage() {
               ) : 'Kirish'}
             </Button>
           </form>
-
-         
         </div>
       </div>
     </div>
