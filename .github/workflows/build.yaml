@@ -1,0 +1,51 @@
+# GitHub Actions workflow for building and pushing a Docker image, and notifying via Telegram.
+
+name: ci
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4 # Action to fetch your repository's code
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ vars.DOCKER_REGISTRY_NAME }}
+          username: ${{ vars.DOCKER_REGISTRY_USERNAME }}
+          password: ${{ secrets.DOCKER_REGISTRY_TOKEN }}
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ vars.DOCKER_REGISTRY_NAME }}/${{ vars.DOCKER_REGISTRY_USERNAME }}/${{ github.event.repository.name }}:latest
+            ${{ vars.DOCKER_REGISTRY_NAME }}/${{ vars.DOCKER_REGISTRY_USERNAME }}/${{ github.event.repository.name }}:${{ github.sha }}
+
+      - name: Notify Telegram
+        if: always()
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          format: markdown
+          message: |
+            ${{ job.status == 'success' && '✅' || '❌' }} *${{ github.repository }}*
+            Branch: `${{ github.ref_name }}`
+            Commit: `${{ github.sha }}`
+            By: ${{ github.actor }}
+            ${{ github.event.head_commit.message }}
