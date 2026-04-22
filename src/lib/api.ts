@@ -1,11 +1,15 @@
-import { store } from '@/store';
-import { refreshAccessToken, logout, setAccessToken } from '@/store/slices/authSlice';
+import { store } from "@/store";
+import {
+  refreshAccessToken,
+  logout,
+  setAccessToken,
+} from "@/store/slices/authSlice";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const API_URL = "/api/";
 
 export async function apiRequest<T = any>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
 ): Promise<T> {
   let { accessToken, refreshToken } = store.getState().auth;
 
@@ -15,11 +19,11 @@ export async function apiRequest<T = any>(
 
     // Agar JSON body bo‘lsa va FormData emas
     if (!(options.body instanceof FormData)) {
-      headers.set('Content-Type', 'application/json');
+      headers.set("Content-Type", "application/json");
     }
 
     if (token) {
-      headers.set('Authorization', `Bearer ${token}`);
+      headers.set("Authorization", `Bearer ${token}`);
     }
 
     return fetch(`${API_URL}${endpoint}`, {
@@ -42,12 +46,12 @@ export async function apiRequest<T = any>(
         // Retry original request
         response = await makeRequest(accessToken);
       } else {
-        throw new Error('Session expired');
+        throw new Error("Session expired");
       }
     } catch (err) {
       store.dispatch(logout());
-      if (typeof window !== 'undefined') {
-        window.location.href = '/login';
+      if (typeof window !== "undefined") {
+        window.location.href = "/login";
       }
       throw err;
     }
@@ -55,7 +59,7 @@ export async function apiRequest<T = any>(
 
   // ❌ Error handling
   if (!response.ok) {
-    let errorMessage = 'Request failed';
+    let errorMessage = "Request failed";
     try {
       const errorData = await response.json();
       errorMessage = errorData?.message || errorMessage;

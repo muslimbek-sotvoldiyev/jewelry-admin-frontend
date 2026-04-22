@@ -1,6 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const API_URL = "/api"; // ✅ to'g'rilandi
 
 interface AuthState {
   accessToken: string | null;
