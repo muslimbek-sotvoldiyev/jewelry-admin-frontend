@@ -1,0 +1,13 @@
+services:
+  jewelry-admin-frontend:
+    image: registry.solara.uz/ci-user/jewelry-admin-frontend:latest
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: jewelry-admin-frontend
+    env_file:
+      - ../.env
+    ports:
+      - "3005:3000"
+
+    restart: unless-stopped
