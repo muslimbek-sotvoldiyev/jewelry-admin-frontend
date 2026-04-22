@@ -27,4 +27,4 @@ async function handler(req: Request, { params }: { params: Promise<any> }) {
   return new Response(await res.text(), { status: res.status });
 }
 
-export { handler as DELETE, handler as GET, handler as POST, handler as PUT };
+export { handler as DELETE, handler as GET, handler as PATCH, handler as POST, handler as PUT };
